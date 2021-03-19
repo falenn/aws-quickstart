@@ -105,6 +105,14 @@ function startEC2ByTagName() {
   aws ec2 start-instances --instance-ids ${id} 
 }
 
+# stop instance by name tag
+function stopEC2ByTagName() {
+  tag=$1
+  echo "Stopping EC2 Instance: $tag"
+  id=`ec2ListIDOnlyByTagName ${tag}`
+  aws ec2 stop-instances --instance-ids ${id}
+}
+
 alias aws-ec2-ami-list-latest="listLatestAMI"
 alias aws-ec2-list-by-tagName="ec2ListByTagName $1"
 alias aws-ec2-list-idonly-by-tagName="ec2ListIDOnlyByTagName $1"
@@ -114,3 +122,5 @@ alias aws-ec2-list-inventory-by-tag="ec2ListByTagInventory $1"
 alias aws-ec2-list-detail-by-tag="ec2ListDetailByTag $1"
 alias aws-export-creds="exportEC2"
 alias aws-ec2-start-by-tagName="startEC2ByTagName $1"
+alias aws-ec2-stop-by-tagName="stopEC2ByTagName $1"
+
