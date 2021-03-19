@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -f ~/.aws/vars ]; then
+  source ~/.aws/vars
+fi
+
+
 function ec2ListAll() {
   aws ec2 describe-instances | \
     jq -r ".Reservations[].Instances[] | [.InstanceId, .PrivateIpAddress, .Tags[].Value] | @csv"
@@ -42,6 +47,9 @@ function ec2ListRunning() {
 }
 
 function exportEC2() {
+  if [ ! -f "~/.aws/credentials" ]; then
+    touch ~/.aws/credentials
+  fi
   {
     while read -r line
     do
@@ -56,6 +64,14 @@ function exportEC2() {
 # @TODO Externalize in the future
 function listLatestAMI() {
   AMI=$1
+  
+  if [ -z "${AMI}" ]; then
+    # set from ~/.aws/vars if exists
+    AMI=${DEFAULT_AMI_NAME}
+  fi
+
+  # echo "AMI Set: ${AMI}"
+   
   CMD="aws ec2 describe-images \
     --filters Name=architecture,Values='x86_64' \
     --filters Name='name',Values='${AMI}'"
