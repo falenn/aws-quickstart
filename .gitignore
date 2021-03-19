@@ -1,5 +1,6 @@
 old
 old/**
 .*.*.swp
+/**/*.swp
 .idea
 current-nodes.json

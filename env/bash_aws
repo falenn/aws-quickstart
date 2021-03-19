@@ -21,6 +21,17 @@ function ec2ListDetailByTagName() {
     --filter "Name=tag:Name,Values=$1"
 }
 
+# List ec2 instance, returning only ID.  Good for automation use when returning
+# an exact match
+# td -d \"  trim quotes from output
+function ec2ListIDOnlyByTagName() {
+  tag=$1
+  aws ec2 describe-instances \
+    --filter "Name=tag:Name,Values=${tag}" | \
+    jq -r ".Reservations[].Instances[] | [.InstanceId] | @csv " | \
+    tr -d \"
+}
+
 function ec2ListByTagInventory() {
   group="$1"
   tag="$2"
@@ -86,11 +97,20 @@ function listLatestAMI() {
   echo "$temp"
 }
 
+# Start an instance(s) up by name tag
+function startEC2ByTagName() {
+  tag=$1
+  echo "starting EC2 Instance: $tag"
+  id=`ec2ListIDOnlyByTagName ${tag}`
+  aws ec2 start-instances --instance-ids ${id} 
+}
+
 alias aws-ec2-ami-list-latest="listLatestAMI"
 alias aws-ec2-list-by-tagName="ec2ListByTagName $1"
+alias aws-ec2-list-idonly-by-tagName="ec2ListIDOnlyByTagName $1"
 alias aws-ec2-list-running="ec2ListRunning"
 alias aws-ec2-list-all="ec2ListAll"
 alias aws-ec2-list-inventory-by-tag="ec2ListByTagInventory $1"
 alias aws-ec2-list-detail-by-tag="ec2ListDetailByTag $1"
 alias aws-export-creds="exportEC2"
-
+alias aws-ec2-start-by-tagName="startEC2ByTagName $1"
