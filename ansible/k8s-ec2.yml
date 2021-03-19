@@ -1,0 +1,49 @@
+---
+ - name: Provision a k8s Node instance
+   hosts: local
+   connection: local
+   gather_facts: false
+   tags: provisioning
+   vars:
+     instance_type: t2.micro
+     security_group: $securitygroup
+     image: $ami
+     region: $region
+     vpc_id: $vpc_id
+     count: 1
+
+   tasks:
+    - local_action: ec2
+                    group={{ security_group }}
+                    instance_type={{ instance_type }}
+                    image={{ image }}
+                    wait=true
+                    wait_timeout=500
+                    region={{ region }}
+                    count={{ 1 }}
+                    monitoring=yes
+                    vpc_subnet_id={{ vpc_id }}
+      register: k8s_node
+ 
+    - name: Wait for new instance(s) to come up
+      local_action: wait_for 
+        host={{ item.private_ip }} 
+        port=22 
+        state=started
+      with_items: '{{ k8s_node.instances }}'
+
+    - name: Add newly created EC2 instance(s) to the local host group
+      local_action: lineinfile
+                    path=k8shosts.txt
+                    regexp={{ item.private_ip }}
+                    insertafter="[k8s]" line={{ item.private_ip }}
+      with_items: '{{ k8s_node.instances }}'
+
+    - name: Add tag to instance(s)
+      local_action: ec2_tag resource={{ item.id }} region={{ region }} state=present
+      with_items: '{{ k8s_node.instances }}'
+      args:
+        tags: 
+          name: k8s
+  
+     

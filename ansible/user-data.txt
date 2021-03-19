@@ -1,0 +1,32 @@
+#cloud-config
+# https://cloudinit.readthedocs.io/en/latest/topics/examples.html?highlight=user%20definition
+
+output : { all : '| tee -a /var/log/cloud-init-output.log' }
+repo_update: true
+repo_upgrade: all
+     
+packages:
+ - awscli
+
+writefiles:
+ - owner: root:root
+   path: /etc/docker/daemon.json
+   permissions: 0600
+   content: |
+     {"storage-driver":"devicemapper",
+      "exec-opts": ["native.cgroupdriver=systemd"],
+      "log-driver":"json-file",
+      "log-opts":{
+        "max-size":"10m",
+        "max-file": "2"
+       }
+     }
+
+
+runcmd:
+ - swapoff -a 
+ - mkdir -p /tmp/installs
+ - aws s3 cp --recursive s3://${s3-bucket-name}/rpms/ /tmp/installs
+ - yum localinstall -y /tmp/installs/*.rpm
+ - systemctl start docker
+ - systemctl enable docker

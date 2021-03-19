@@ -1,0 +1,31 @@
+{
+    "ImageId": "",
+    "InstanceType": "t2.xlarge",
+    "Ipv6AddressCount": 0, 
+    "Monitoring": {
+        "Enabled": true
+    },
+    "Placement": {
+        "Tenancy": "default",
+        "AvailabilityZone": "us-east-1a"
+    },
+    "SubnetId": "subnet-58164e10",
+    "DisableApiTermination": false,
+    "DryRun": false,
+    "EbsOptimized": false,
+    "IamInstanceProfile": {
+        "Arn": "arn:aws:iam::<....>:instance-profile/<name>"
+    },
+    "InstanceInitiatedShutdownBehavior": "terminate",
+    "TagSpecifications": [
+        {
+            "ResourceType": "instance",
+            "Tags": [
+                {
+                    "Key": "user",
+                    "Value": "<add your sid here>"
+                }
+            ]
+        }
+    ]
+}

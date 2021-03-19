@@ -1,0 +1,94 @@
+#!/bin/bash
+
+TERRAFORM_VER=0.11.3
+VAULT_VER=0.9.3
+ANSIBLE_VER=2.8
+
+# old - add yourself to the docker group
+#
+#function docker() {
+#    sudo docker $@
+#}
+#
+#function docker-compose() {
+#    sudo docker-compose $@
+#}
+
+# returns 0 if container exists, thus requiring "docker start" else 1 if "docker run..." needed
+function isContainerExists() {
+ name="$1"
+ egrep -q "$name" <<< `docker ps -a` && echo "0" || echo "1"
+}
+
+#run with (1)path (2)remaining params
+function runAnsible() {
+ name="ansible"
+ echo "params passed in: $@"
+
+ if [[ `isContainerExists $name` == "0" ]]; then
+   echo "Container exists.  Removing"
+   docker stop "$name"
+   docker rm "$name"
+ fi   
+ 
+ mkdir -p ~/log
+ touch ~/log/ansible.log
+ mkdir -p ~/.kube
+ touch ~/.kube/config
+ docker run -it --name $name \
+   -v ~/.ssh:/root/.ssh \
+   -v ~/.kube/config:/root/.kube/config \
+   -v /etc/ssh/ssh_config:/etc/ssh/ssh_config \
+   -v $(pwd):/root/ansible \
+   -v $(pwd)/ansible.cfg:/etc/ansible/ansible.cfg \
+   -v ~/log/ansible.log:/var/log/ansible/ansible.log \
+   -w=/root/ansible \
+   --network host \
+   narigacdo/debian-ansible:${ANSIBLE_VER} \
+   $@
+}
+
+alias d='docker'
+alias dc='docker-compose'
+alias k='kubectl'
+
+alias vault="docker run -it --rm \
+        -e VAULT_ADDR:VAULT_ADDR \
+        --entrypoint='/bin/vault' \
+        vault:${VAULT_VER} login"
+
+alias terraform="docker run --network=host --rm -it \
+        -v $(pwd):/app \
+        -v /.terraform.d/plugins/lunx_amd64/:/plugins/ \
+        -v /etc/pki/tls/certs/cacert.crt:/etc/pki/tls/certs/cacert.crt \
+        -w /app \
+        --log-driver=journald \
+        hashicorp/terraform:${TERRAFORM_VER}"
+
+# point this script at any inventory file to execute any Ansible cmd on any host
+# ex: ansible play playbooks/deploy.yml -i inventory/dev -e "some_var=some_val"
+alias dansible='runAnsible "$@"'
+
+alias node='docker run --rm -it \
+  -v ~/.ssh/id_rsa:/root/.ssh/id_rsa \
+  -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub \
+  -v $(pwd):/app \
+  -w /app \
+  node:latest node "$@"'
+
+alias npm='docker run --rm -it \
+  -v ~/.ssh/id_rsa:/root/.ssh/id_rsa \
+  -v ~/.ssh/id_rsa.pub:/root/.ssh/id_rsa.pub \
+  -v $(pwd):/app \
+  -w /app \
+  node:latest npm "$@"'
+
+function k9s() {
+  docker run \
+  --rm \
+  -it \
+  -v $1:/root/.kube/config \
+  quay.io/derailed/k9s
+}
+
+alias k9s='k9s ~/.kube/config'

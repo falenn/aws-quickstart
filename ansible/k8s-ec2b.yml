@@ -1,0 +1,71 @@
+---
+ - name: Provision a k8s Node instance
+   hosts: local
+   connection: local
+   gather_facts: false
+   tags: provisioning
+   vars:
+     instance_type: t2.micro
+     security_group: 
+     image: 
+     region: 
+     vpc_id: 
+     vpc_subnet_id: 
+     # use --extra-vars '{"count"=#,"clusterName":"cluster1"}' to pass in other value
+     count: 1
+     clusterName: testcluster1
+     volume_docker_device_name: /dev/sdb
+     volume_docker_type: gp2
+     volume_docker_size: 10
+     arn: <ARN for security-group>
+     instance_profile_name: <profile name>  
+     key_name: <SSH Keypair name>
+
+   tasks:
+    - ec2:
+        group: "{{ security_group }}"
+        instance_type: "{{ instance_type }}"
+        instance_profile_name: "{{ instance_profile_name }}"
+        image: "{{ image }}"
+        key_name: "{{ key_name }}"
+        wait: yes
+        wait_timeout: 500
+        region: "{{ region }}"
+        count: "{{ count }}"
+        monitoring: yes
+        vpc_subnet_id: "{{ vpc_subnet_id }}"
+        instance_tags:
+          type: k8s
+          k8s: node
+          cluster: "{{ clusterName }}"
+        volumes:
+         - device_name: "{{ volume_docker_device_name }}"
+           volume_type: "{{ volume_docker_type }}"
+           volume_size: "{{ volume_docker_size }}"
+           delete_on_termination: true
+        user_data: "{{ lookup('file', 'user-data.txt') }}" 
+      register: k8s_node
+    
+ 
+    - name: Wait for new instance(s) to come up
+      local_action: wait_for 
+        host={{ item.private_ip }} 
+        port=22 
+        state=started
+      with_items: '{{ k8s_node.instances }}'
+
+ #   - name: Add newly created EC2 instance(s) to the local host group
+ #     local_action: lineinfile
+ #                   path=k8shosts.txt
+ #                   regexp={{ item.private_ip }}
+ #                   insertafter="[k8s]" line={{ item.private_ip }}
+ #     with_items: '{{ k8s_node.instances }}'
+
+    - name: Add tag to instance(s)
+      local_action: ec2_tag resource={{ item.id }} region={{ region }} state=present
+      with_items: '{{ k8s_node.instances }}'
+      args:
+       tags:
+          Name: "{{ item.private_dns_name }}"
+  
+     

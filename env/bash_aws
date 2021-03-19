@@ -1,0 +1,80 @@
+#!/bin/bash
+
+function ec2ListAll() {
+  aws ec2 describe-instances | \
+    jq -r ".Reservations[].Instances[] | [.InstanceId, .PrivateIpAddress, .Tags[].Value] | @csv"
+}
+
+function ec2ListByTagName() {
+  aws ec2 describe-instances \
+    --filter "Name=tag:Name,Values=$1" | \
+    jq -r ".Reservations[].Instances[] | [.InstanceId, .PrivateIpAddress, .Tags[].Value] | @csv"
+}
+
+function ec2ListDetailByTagName() {
+  aws ec2 describe-instances \
+    --filter "Name=tag:Name,Values=$1"
+}
+
+function ec2ListByTagInventory() {
+  group="$1"
+  tag="$2"
+  echo "ansible_connection=ssh"
+  echo "ansible_ssh_common_args='-o StrictHostKeyChecking=no'"
+
+  if [ -z "$group" ]; then
+    echo "arg 1 is group, arg 2 is tag search"
+  fi
+  echo "[$group]"
+  
+  if [ -z "$tag" ]; then
+    echo "arg 1 is group, arg 2 is tag search"
+  fi
+  aws ec2 describe-instances \
+    --filter "Name=tag:Name,Values=$2" | \
+    jq -r ".Reservations[].Instances[] | .PrivateIpAddress"
+}
+
+function ec2ListRunning() {
+  aws ec2 describe-instances \
+    --filter "Name=instance-state-name,Values=running" | \
+    jq -r ".Reservations[].Instances[] | [.InstanceId, .PrivateIpAddress, .Tags[].Value] | @csv"
+}
+
+function exportEC2() {
+  {
+    while read -r line
+    do
+      egrep -q "^\[[/w/s/n]*" <<< $line && echo "Ignoring $line" || declare "$line"
+    done 
+  } < ~/.aws/credentials
+  export AWS_ACCESS_KEY_ID=$aws_access_key_id
+  export AWS_SECRET_ACCESS_KEY=$aws_secret_access_key  
+}
+
+# Because of the fixed nature of the env, the params are set for the amis we see.
+# @TODO Externalize in the future
+function listLatestAMI() {
+  AMI=$1
+  CMD="aws ec2 describe-images \
+    --filters Name=architecture,Values='x86_64' \
+    --filters Name='name',Values='${AMI}'"
+
+  ImageJSON="`$CMD`"
+
+  imageId=`echo $ImageJSON | jq '.Images[].ImageId'`
+
+  # Remove quotes
+  temp="${imageId%\"}"
+  temp="${temp#\"}"
+  echo "$temp"
+}
+
+alias aws-ec2-ami-list-latest="listLatestAMI"
+alias aws-ec2-list-by-tagName="ec2ListByTagName $1"
+alias aws-ec2-list-running="ec2ListRunning"
+alias aws-ec2-list-all="ec2ListAll"
+alias aws-ec2-list-inventory-by-tag="ec2ListByTagInventory $1"
+alias aws-ec2-list-detail-by-tag="ec2ListDetailByTag $1"
+alias aws-export-creds="exportEC2"
+
