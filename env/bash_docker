@@ -2,7 +2,20 @@
 
 TERRAFORM_VER=0.11.3
 VAULT_VER=0.9.3
-ANSIBLE_VER=2.8
+# ANSIBLE_IMG=narigacdo/debian-ansible:2.8
+ANSIBLE_IMG=awkspace/ansible:latest
+
+if [ ! -e UID ]; then
+  UID=`id -u`
+  export UID
+fi
+
+if [ ! -e GID ]; then
+  GID=`id -g`
+  export GID
+fi
+
+
 
 # old - add yourself to the docker group
 #
@@ -35,8 +48,15 @@ function runAnsible() {
  touch ~/log/ansible.log
  mkdir -p ~/.kube
  touch ~/.kube/config
+ 
+ # setup ssh keys - don't like this
+ mkdir -p $(pwd)/.ssh 
+ cp ~/.ssh/id* -p $(pwd)/.ssh
+ sudo chown -R root: $(pwd)/.ssh
+
  docker run -it --name $name \
-   -v ~/.ssh:/root/.ssh \
+   -v $(pwd)/.ssh:/root/.ssh \
+   -v ~/.aws:/root/.aws \
    -v ~/.kube/config:/root/.kube/config \
    -v /etc/ssh/ssh_config:/etc/ssh/ssh_config \
    -v $(pwd):/root/ansible \
@@ -44,8 +64,8 @@ function runAnsible() {
    -v ~/log/ansible.log:/var/log/ansible/ansible.log \
    -w=/root/ansible \
    --network host \
-   narigacdo/debian-ansible:${ANSIBLE_VER} \
-   $@
+   $ANSIBLE_IMG \
+   /bin/sh
 }
 
 alias d='docker'
